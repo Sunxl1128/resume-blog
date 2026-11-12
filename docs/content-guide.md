@@ -10,7 +10,7 @@
 
 ### 第 1 步：打开文件
 
-用任意文本编辑器打开 `data/resume.js`，搜索 `projects:`，找到里面的 `items: [ ... ]` 数组。当前数组里已经有 1 个对象（新能源充电桩上位机系列项目）。
+用任意文本编辑器打开 `data/resume.js`，搜索 `projects:`，找到里面的 `items: [ ... ]` 数组。当前数组里已经有 **5 个对象**：新能源充电桩上位机系列项目（C6/C7/C8A/C8S）、Nori 家庭日常 AI 助理，以及「蓝牙通信的单兵身体检测上位机软件」「油井操作平板设备端软件」「大型轮转器 App 操作软件」3 个行业终端项目。后 4 项按用户口述补充，只写基于名称的客观描述，未公开的周期 / 角色 / 成果一律留空。
 
 ### 第 2 步：复制一个对象，粘到数组末尾
 
@@ -58,8 +58,8 @@ git commit -m "docs: add project xxx"
 | --- | --- | --- | --- |
 | `id` | string | 建议 | 唯一标识，仅用于区分条目（不生成 DOM id），建议小写字母 / 数字 / 连字符。重复不会报错，但不利于维护。 |
 | `name` | string | 是 | 项目名称，显示为卡片标题。 |
-| `period` | string | 是 | 项目周期，如 `"2024.01 - 至今"`。 |
-| `role` | string | 是 | 担任角色，如 `"项目负责人 / 核心开发工程师"`。 |
+| `period` | string | 否 | 项目周期，如 `"2024.01 - 至今"`。**信息未公开时直接省略，不要猜测**；省略后卡片不会出现周期占位。 |
+| `role` | string | 否 | 担任角色，如 `"项目负责人 / 核心开发工程师"`。**信息未公开时直接省略**，也不要写成「主导 / 独立负责 / 项目负责人」。 |
 | `status` | string | 否 | 状态徽标文字，如 `"进行中"` / `"已交付"`。留空 `""` 则不显示徽标。 |
 | `statusTone` | string | 否 | 徽标语义色：`success`（绿）/ `warn`（黄）/ `info`（蓝）/ `accent`（绿强调）/ `purple`（紫）/ `neutral`（灰）。默认 `success`。 |
 | `summary` | string | 建议 | 项目一句话概述，显示在卡片头部。 |
@@ -89,8 +89,7 @@ git commit -m "docs: add project xxx"
 {
   id: "draft-project",
   name: "内部工具（暂无公开资料）",
-  period: "2023.01 - 2023.06",
-  role: "独立开发",
+  // period / role / status 未公开时直接省略整行，不要猜测
   highlights: [],
   stack: [],
   results: [],
@@ -103,6 +102,11 @@ git commit -m "docs: add project xxx"
 - 整个 `projects.items: []` → 渲染成「暂无项目条目」的空态提示。
 - `status` 不写 → 不显示状态徽标。
 - `summary` 不写 → 头部不出现概述段落。
+- `period` / `role` 省略或为空 → 不生成对应的空 `<span>`；`period` / `role` / `status` 三者都为空时，整个 `.project-meta` 容器也不生成。
+- `highlights` / `stack` / `results` 省略或为 `[]` → 不生成「核心工作 / 技术栈 / 项目成果」区块，不会出现空标题或空列表。
+- 渲染层对缺失字段统一用 `|| []` 与条件判断兜底，**不会把缺失值渲染成字符串 `undefined`**。
+
+> 本次新增的 4 个项目按此约定处理：只有 Nori 带 `summary` / `highlights` / `stack` / `links`，另外 3 个行业终端项目只写 `name` / `summary` / `tags`，其余字段为空数组或省略。这是「严禁编造未公开信息」的要求，不是数据缺失。
 
 ---
 
@@ -123,6 +127,16 @@ git commit -m "docs: add project xxx"
 | C7 新一代发布新闻 | `https://www.xcharge.com/newsDetail?id=6a3350039c6f921c19dcc7e2&type=news` |
 | 奥飞娱乐官网 | `https://www.gdalpha.com/` |
 | 好活科技官网 | `https://www.51haohuo.com/` |
+
+### 家庭 AI 助理 / 芯片平台（本次新增 3 条，实测 HTTP 200）
+
+| 用途 | URL |
+| --- | --- |
+| Nori 官网 | `https://heynori.com/` |
+| RK3576 官方规格（瑞芯微） | `https://www.rock-chips.com/a/cn/product/RK35xilie/2024/1015/2016.html` |
+| 瑞芯微官网 | `https://www.rock-chips.com/` |
+
+> 这 3 条仅用于 `nori-family-ai-hub` 项目卡片；另外 3 个行业终端项目均为 `links: []`。`support.heynori.com` 实测 403，禁止加入白名单。
 
 ### 技术 / 协议
 

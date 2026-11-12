@@ -480,20 +480,21 @@
         var head = el("div", "project-card__head");
         head.appendChild(el("h3", "project-name", project.name || ""));
 
+        /* 字段缺省 / 空数组时不生成空标签或空标题，避免 undefined 与空白占位 */
         var meta = el("div", "project-meta");
-        meta.appendChild(el("span", "project-meta__period", project.period || ""));
-        meta.appendChild(el("span", "", project.role || ""));
+        if (project.period) { meta.appendChild(el("span", "project-meta__period", project.period)); }
+        if (project.role) { meta.appendChild(el("span", "", project.role)); }
         if (project.status) { meta.appendChild(badge(project.status, project.statusTone || "success")); }
-        head.appendChild(meta);
+        if (meta.childNodes.length > 0) { head.appendChild(meta); }
 
         if (project.summary) { head.appendChild(el("p", "project-summary", project.summary)); }
         if ((project.tags || []).length > 0) { head.appendChild(tagList(project.tags)); }
         card.appendChild(head);
 
         var body = el("div", "project-card__body");
-        body.appendChild(listBlock("核心工作", project.highlights));
-        body.appendChild(stackBlock("技术栈", project.stack));
-        body.appendChild(listBlock("项目成果", project.results, "project-list--results"));
+        if ((project.highlights || []).length > 0) { body.appendChild(listBlock("核心工作", project.highlights)); }
+        if ((project.stack || []).length > 0) { body.appendChild(stackBlock("技术栈", project.stack)); }
+        if ((project.results || []).length > 0) { body.appendChild(listBlock("项目成果", project.results, "project-list--results")); }
         body.appendChild(linksBlock("相关外链 · 可点击查看", project.links, cfg.linksEmptyText));
         card.appendChild(body);
 

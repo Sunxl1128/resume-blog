@@ -54,6 +54,8 @@ resume-blog/
 
 打开 `data/resume.js`，找到 `projects.items` 数组，**复制里面已有的一个对象**，粘贴到数组末尾（记得在前面加逗号），改掉字段后保存即可。页面会自动多渲染一张项目卡片，不需要动任何其它文件。
 
+当前共 **5 张项目卡片**：新能源充电桩上位机系列（C6/C7/C8A/C8S）、Nori 家庭日常 AI 助理，以及蓝牙单兵身体检测 / 油井操作平板 / 大型轮转器 3 个行业终端项目。后 4 项按用户口述补充，只写基于名称的客观描述，未公开的周期、角色、成果数字一律留空；只有 Nori 带 3 条已核实外链，其余显示「本项目暂无公开外链」空态。
+
 ```js
 {
   id: "my-new-project",                    // 唯一标识，小写字母 / 数字 / 连字符
@@ -72,6 +74,8 @@ resume-blog/
   tags: ["新能源", "海外交付"]              // 卡片顶部标签，可为空 []
 }
 ```
+
+> 上面是字段模板，示例值只演示格式：用户未公开的周期 / 角色 / 状态 / 成果请直接省略或写 `[]`，**不要猜测**；`links[].url` 必须来自外链白名单。本次新增的 4 个项目就是按此约定处理的。
 
 完整字段说明、空值处理与常见错误见 [`docs/content-guide.md`](./docs/content-guide.md)。
 
@@ -127,6 +131,7 @@ resume-blog/
 
 - **公司 / 产品 / 认证**：XCHARGE 官网、关于 XCHARGE、C7 超充产品页、C6 产品页、Net Zero Series、OCA 的 XCharge Group OCPP 认证记录、C7 新一代发布新闻、奥飞娱乐官网、好活科技官网
 - **技术 / 协议**：Jetpack Compose、Kotlin、Flutter、Open Charge Alliance、MQTT
+- **本次新增（家庭 AI 助理 / 芯片平台，实测 200，共 3 条）**：Nori 官网 `https://heynori.com/`、RK3576 官方规格（瑞芯微）`https://www.rock-chips.com/a/cn/product/RK35xilie/2024/1015/2016.html`、瑞芯微官网 `https://www.rock-chips.com/` —— 仅挂在 Nori 项目卡片上，另外 3 个新增项目均为 `links: []`；`support.heynori.com` 实测 403，未加入白名单
 - **本人 GitHub**：`github.com/Sunxl1128` 及 6 个公开仓库（CoolMallKotlin、SuperEditTextLibrary、SxlLibrary、SxlLibrary2、DJI-Android-VideoStreamDecodingSample、ai-native-jobhunt）
 
 「名医讲堂 / 看名医」「有妖气」「未名天」三处公司名因域名实测不可达，**只显示纯文本，不加外链**。

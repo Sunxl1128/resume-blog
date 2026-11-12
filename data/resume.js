@@ -18,7 +18,7 @@ window.RESUME_DATA = {
     name: "孙喜龙",
     handle: "Sunxl1128",
     title: "孙喜龙 · 9 年 Android 开发 / 新能源充电桩上位机工程师 · 简历",
-    description: "孙喜龙的个人简历博客：9 年 Android 原生开发经验，深耕新能源充电桩上位机（C6/C7/C8A/C8S），精通 Jetpack Compose、Kotlin、Flutter、OCPP、MQTT，含工作经历、项目经历与 GitHub 开源实践。",
+    description: "孙喜龙的个人简历博客：9 年 Android 原生开发经验，深耕新能源充电桩上位机（C6/C7/C8A/C8S），并参与家庭日常 AI 助理（Nori / RK3576）与行业终端上位机项目；精通 Jetpack Compose、Kotlin、Flutter、OCPP、MQTT，含工作经历、项目经历与 GitHub 开源实践。",
     keywords: "孙喜龙,Android,新能源充电桩,上位机,Jetpack Compose,Kotlin,Flutter,OCPP,MQTT,MVVM,MVI,个人简历,GitHub Pages",
     url: "https://sunxl1128.github.io/resume-blog/",
     lang: "zh-CN",
@@ -259,7 +259,7 @@ window.RESUME_DATA = {
   projects: {
     eyebrow: "04 / PROJECTS",
     title: "项目经历",
-    note: "所有项目由下方 items 数组驱动，每个对象渲染成一张卡片；带 ↗ 的外链均可点击查看。后续补充项目只需复制一个对象追加到数组。",
+    note: "所有项目由下方 items 数组驱动，每个对象渲染成一张卡片；带 ↗ 的外链均可点击查看。部分项目仅按名称做客观描述，未公开的周期 / 角色 / 成果一律留空，暂无公开外链的显示空态提示。后续补充项目只需复制一个对象追加到数组。",
     emptyText: "暂无项目条目；可在 data/resume.js 的 projects.items 中追加。",
     linksEmptyText: "本项目暂无公开外链。",
     items: [
@@ -296,6 +296,53 @@ window.RESUME_DATA = {
           { label: "C7 新一代发布新闻", url: "https://www.xcharge.com/newsDetail?id=6a3350039c6f921c19dcc7e2&type=news", kind: "news" }
         ],
         tags: ["新能源", "充电桩上位机", "海外交付", "从 0 到 1", "Flutter 工具链"]
+      },
+      {
+        id: "nori-family-ai-hub",
+        name: "Nori 家庭日常 AI 助理（软硬件协同）",
+        summary: "面向家庭日常场景的软硬件协同 AI 助理项目，App 侧与硬件侧功能均为协助实现。",
+        highlights: [
+          "App 侧：协助实现相册、日历、Meal Plan（膳食计划）等模块。",
+          "硬件侧：基于 RK3576 平台，协助完成硬件的所有系统设置与硬件设置、OTA 相关功能，以及 Onboarding 开机引导、屏保提醒、相册 / Recipe（食谱）/ Meal Plan 等功能。"
+        ],
+        stack: ["RK3576"],
+        results: [],
+        links: [
+          { label: "Nori 官网", url: "https://heynori.com/", kind: "company" },
+          { label: "RK3576 官方规格（瑞芯微）", url: "https://www.rock-chips.com/a/cn/product/RK35xilie/2024/1015/2016.html", kind: "standard" },
+          { label: "瑞芯微官网", url: "https://www.rock-chips.com/", kind: "company" }
+        ],
+        tags: ["家庭 AI 助理", "RK3576", "Android 系统应用", "OTA", "软硬件协同"]
+      },
+      {
+        id: "soldier-vitals-ble-hmi",
+        name: "蓝牙通信的单兵身体检测上位机软件",
+        summary: "面向单兵身体检测场景的蓝牙通信上位机软件。",
+        highlights: [],
+        stack: [],
+        results: [],
+        links: [],
+        tags: ["行业终端", "上位机", "设备端", "蓝牙通信", "身体检测"]
+      },
+      {
+        id: "oilwell-tablet-hmi",
+        name: "油井操作平板设备端软件",
+        summary: "面向油井操作场景的平板设备端软件。",
+        highlights: [],
+        stack: [],
+        results: [],
+        links: [],
+        tags: ["行业终端", "上位机", "设备端", "平板设备端", "油井操作"]
+      },
+      {
+        id: "rotary-press-app",
+        name: "大型轮转器 App 操作软件",
+        summary: "面向大型轮转器设备的 App 操作软件。",
+        highlights: [],
+        stack: [],
+        results: [],
+        links: [],
+        tags: ["行业终端", "上位机", "设备端", "App 操作软件", "大型轮转器"]
       }
     ]
   },
