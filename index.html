@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>孙喜龙 · 9 年 Android 开发 / 新能源充电桩上位机工程师 · 简历</title>
+  <meta name="description" content="孙喜龙的个人简历博客：9 年 Android 原生开发经验，深耕新能源充电桩上位机（C6/C7/C8A/C8S），精通 Jetpack Compose、Kotlin、Flutter、OCPP、MQTT，含工作经历、项目经历与 GitHub 开源实践。">
+  <meta name="keywords" content="孙喜龙,Android,新能源充电桩,上位机,Jetpack Compose,Kotlin,Flutter,OCPP,MQTT,MVVM,MVI,个人简历,GitHub Pages">
+  <meta name="author" content="孙喜龙">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0d1117">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="孙喜龙 · 简历博客">
+  <meta property="og:title" content="孙喜龙 · 9 年 Android 开发 / 新能源充电桩上位机工程师 · 简历">
+  <meta property="og:description" content="9 年 Android 原生开发，深耕新能源充电桩上位机；工作经历、项目经历与开源实践，附可点击的已核实外链。">
+  <meta property="og:url" content="https://sunxl1128.github.io/resume-blog/">
+  <meta property="og:locale" content="zh_CN">
+  <meta name="twitter:card" content="summary">
+  <link rel="canonical" href="https://sunxl1128.github.io/resume-blog/">
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
+  <link rel="stylesheet" href="./assets/css/style.css">
+  <!--
+    主题前置脚本：在样式生效前确定深浅色，避免刷新时闪白。
+    优先级：localStorage 记忆 > prefers-color-scheme > 默认深色。
+    这是行为逻辑而非简历内容，所有简历内容仍集中在 data/resume.js。
+  -->
+  <script>
+    (function () {
+      var theme = "dark";
+      try {
+        var saved = window.localStorage.getItem("resume-theme");
+        if (saved === "light" || saved === "dark") {
+          theme = saved;
+        } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+          theme = "light";
+        }
+      } catch (e) {
+        theme = "dark";
+      }
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+</head>
+<body id="top">
+  <a class="skip-link" href="#main">跳到主要内容</a>
+
+  <header class="site-header">
+    <nav class="nav container" aria-label="主导航">
+      <a class="nav-brand" href="#top" aria-label="返回页首">
+        <span class="nav-brand__prompt" aria-hidden="true">~/</span><span>sunxl1128</span><span class="nav-brand__cursor" aria-hidden="true">_</span>
+      </a>
+      <ul class="nav-list" id="nav-list" aria-label="页面区块"><!-- 由 assets/js/main.js 依据 data/resume.js 的 nav 渲染 --></ul>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="false" aria-label="切换到浅色主题">
+        <svg class="theme-toggle__icon theme-toggle__icon--sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <svg class="theme-toggle__icon theme-toggle__icon--moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+        <span class="sr-only">切换深浅色主题</span>
+      </button>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="section hero" id="hero" aria-labelledby="hero-name">
+      <div class="container" id="hero-root"></div>
+    </section>
+
+    <section class="section" id="about" data-nav="about" aria-labelledby="about-title">
+      <div class="container" id="about-root"></div>
+    </section>
+
+    <!-- 技能栈是内容独立区块，但导航上归入「关于」，故 data-nav 复用 about -->
+    <section class="section" id="skills" data-nav="about" aria-labelledby="skills-title">
+      <div class="container" id="skills-root"></div>
+    </section>
+
+    <section class="section" id="experience" data-nav="experience" aria-labelledby="experience-title">
+      <div class="container" id="experience-root"></div>
+    </section>
+
+    <section class="section" id="projects" data-nav="projects" aria-labelledby="projects-title">
+      <div class="container" id="projects-root"></div>
+    </section>
+
+    <section class="section" id="opensource" data-nav="opensource" aria-labelledby="opensource-title">
+      <div class="container" id="opensource-root"></div>
+    </section>
+
+    <section class="section" id="education" data-nav="education" aria-labelledby="education-title">
+      <div class="container" id="education-root"></div>
+    </section>
+
+    <section class="section" id="contact" data-nav="contact" aria-labelledby="contact-title">
+      <div class="container" id="contact-root"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer" id="footer-root" aria-label="页脚"></footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!--
+    <noscript> 兜底：JS 被禁用时仍可读到核心简历信息与关键外链。
+    完整、最新的内容请直接查看 data/resume.js（纯文本 JS，无需运行环境即可阅读）。
+  -->
+  <noscript>
+    <div class="noscript-box">
+      <h1>孙喜龙 · 个人简历</h1>
+      <p>当前浏览器已禁用 JavaScript，动态渲染的简历内容无法显示。以下为静态兜底摘要；完整内容请查看项目中的 <code>data/resume.js</code> 文件（纯文本，可直接阅读），或启用 JavaScript 后刷新。</p>
+      <h2>个人定位</h2>
+      <p>9 年 Android 原生开发经验，深耕新能源充电桩上位机领域，同时覆盖在线医疗、泛娱乐、教育行业；精通硬件通讯协议与多版本 Android 适配，具备 Flutter 跨平台开发能力，主导多款产品从 0 到 1 落地与迭代。</p>
+      <h2>关键指标</h2>
+      <p>9 年 Android 开发经验 · 10+ 国家 / 地区 · 50+ 海外客户 · 2000+ 台设备规模落地</p>
+      <h2>工作经历</h2>
+      <ol>
+        <li>北京智充科技有限公司 | Android 开发工程师 / 项目负责人 | 2022.12 - 至今（<a href="https://www.xcharge.com/" target="_blank" rel="noopener noreferrer">XCHARGE 官网 ↗</a>）</li>
+        <li>名医讲堂 (北京) 科技发展有限公司 | Android 研发经理 | 2022.05 - 2022.11</li>
+        <li>好活集团 | Android 开发工程师 | 2021.04 - 2022.05（<a href="https://www.51haohuo.com/" target="_blank" rel="noopener noreferrer">好活科技官网 ↗</a>）</li>
+        <li>奥飞娱乐股份有限公司 | Android 研发经理 | 2019.11 - 2021.04（<a href="https://www.gdalpha.com/" target="_blank" rel="noopener noreferrer">奥飞娱乐官网 ↗</a>）</li>
+        <li>未名天 (北京) 教育科技有限公司 | Android 开发工程师 | 2016.08 - 2019.11</li>
+      </ol>
+      <h2>核心项目</h2>
+      <p>新能源充电桩上位机系列开发项目（C6/C7/C8A/C8S）| 2024.01 - 至今 | 项目负责人 / 核心开发工程师。采用 Jetpack Compose + MVVM + MVI 架构，适配 OCPP 1.6/2.0 与 MQTT 协议，独立开发 Flutter Windows 测试运维工具；C8A/C8S 规模落地 2000+ 台。</p>
+      <p>相关外链：
+        <a href="https://www.xcharge.com/device/C7EU" target="_blank" rel="noopener noreferrer">C7 超充产品页 ↗</a> ·
+        <a href="https://www.xcharge.us/product/c6" target="_blank" rel="noopener noreferrer">C6 产品页 ↗</a> ·
+        <a href="https://m.xcharge.com/device/NetZeroSeries" target="_blank" rel="noopener noreferrer">Net Zero Series ↗</a> ·
+        <a href="https://openchargealliance.org/participants/beijing-x-charge-technology-co-ltd" target="_blank" rel="noopener noreferrer">OCPP 认证记录 ↗</a>
+      </p>
+      <h2>教育经历</h2>
+      <p>吉林师范大学 | 软件工程 | 本科 | 2013.09 - 2017.06</p>
+      <h2>联系方式</h2>
+      <p>手机：16601115513 · 邮箱：sunxilongsxl@163.com · 所在地：北京 · <a href="https://github.com/Sunxl1128" target="_blank" rel="noopener noreferrer">GitHub 主页 ↗</a></p>
+    </div>
+  </noscript>
+
+  <!-- 同步注入：file:// 双击直接预览，不依赖 fetch / 本地服务器 / 构建工具 -->
+  <script src="./data/resume.js"></script>
+  <script src="./assets/js/main.js"></script>
+</body>
+</html>
