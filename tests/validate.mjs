@@ -2,14 +2,22 @@
 /**
  * tests/validate.mjs — 简历博客上线回归自检工具
  * ---------------------------------------------------------------------------
- * 用法：node tests/validate.mjs [--no-links] [--no-online]
+ * 用法：node tests/validate.mjs [--online-render] [--no-links] [--no-online]
+ *   --online-render  额外用 Chrome 打开线上 Pages 做真实渲染断言（默认只 curl 探测）
+ *   --no-links       跳过外链 curl 复测（离线快速自检）
+ *   --no-online      跳过线上地址探测
  *
  * 覆盖：
  *   A. 静态检查：JS 语法 / 数据契约 / 外链白名单 / 相对路径 / CSS 设计令牌 / 内容一致性
+ *      A17-A20 专门校验 00d2627 增量（5 项目、无编造字段、措辞纪律、403 域名）
  *   B. 真实浏览器（Chrome/Edge headless + CDP）：真实渲染 DOM 断言、控制台错误、
  *      外链属性精确值、主题切换与记忆、reduced-motion、noscript、四档响应式、打印样式
+ *      B20-B25 专门复核 renderProjects 条件渲染与导航高亮 / 点击复制回归
  *   C. 易扩展性冒烟：内存中 patch window.RESUME_DATA，不改动任何源文件
- *   D. 外链 curl 复测 / 线上 Pages 探测（可选）
+ *   D. 外链 curl 复测 / 线上 Pages 探测与内容同步状态（可选）
+ *
+ * 结果状态：PASS / FAIL / WAIT。WAIT = 部署状态（主理人尚未 push）导致线上仍是旧版，
+ * 不计入通过率分母，也不判为源码缺陷，push 后复测即可。
  *
  * 设计原则：只读源码；临时 harness 写在系统临时目录，跑完即删；零第三方依赖。
  */
@@ -27,10 +35,15 @@ const read = (f) => fs.readFileSync(f, "utf8");
 const fileUrl = (f) => pathToFileURL(f).href;
 
 const results = [];
+/**
+ * 登记一条用例。
+ * ok === true → PASS；ok === false → FAIL；ok === null → WAIT（部署/环境状态，不计入通过率分母）。
+ * WAIT 用于「主理人尚未 push，线上仍是旧版」这类无需工程师修源码、只需稍后复测的情形。
+ */
 function check(id, name, method, expected, actual, ok, detail = "") {
-  results.push({ id, name, method, expected, actual, ok: !!ok, detail });
+  const state = ok === null ? "WAIT" : (ok ? "PASS" : "FAIL");
+  results.push({ id, name, method, expected, actual, state, detail });
 }
-const pass = (c) => c.ok;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ---------------------------------------------------------------------------
@@ -58,9 +71,24 @@ const WHITELIST = [
   "https://github.com/Sunxl1128/SxlLibrary2",
   "https://github.com/Sunxl1128/DJI-Android-VideoStreamDecodingSample",
   "https://github.com/Sunxl1128/ai-native-jobhunt",
+  /* 00d2627 增量：Nori / 瑞芯微，3 条均 curl 实测 200 */
+  "https://heynori.com/",
+  "https://www.rock-chips.com/a/cn/product/RK35xilie/2024/1015/2016.html",
+  "https://www.rock-chips.com/",
 ];
 const SELF_URL = "https://sunxl1128.github.io/resume-blog/";
 const FORBIDDEN_DOMAINS = ["52myjt.com", "u17.com", "pkusky.com"];
+/* 实测 403，禁止进入数据外链（仅允许在文档里作为「禁止说明」出现） */
+const FORBIDDEN_URLS = ["support.heynori.com"];
+const ROCK_SPEC_URL = "https://www.rock-chips.com/a/cn/product/RK35xilie/2024/1015/2016.html";
+const EXPECTED_PROJECT_COUNT = 5;
+const EXPECTED_PROJECT_IDS = [
+  "xcharge-hmi-c6-c7-c8a-c8s", "nori-family-ai-hub", "soldier-vitals-ble-hmi",
+  "oilwell-tablet-hmi", "rotary-press-app",
+];
+const INDUSTRY_COMMON_TAGS = ["行业终端", "上位机", "设备端"];
+const NORI_KEYWORDS = ["OTA", "屏保提醒", "Recipe", "Meal Plan", "相册", "日历", "RK3576", "Onboarding"];
+const EXAGGERATIONS = ["主导", "独立负责", "项目负责人"];
 
 /* ===========================================================================
    A. 静态检查
@@ -240,6 +268,69 @@ function staticChecks() {
   check("A16", "唯一扩展点：projects.items + 空态文案常量齐备", "源码/文档一致性",
     "数据文件内定义 linksEmptyText / emptyText", docOk ? "齐备" : "缺失", docOk);
 
+  /* ---- 增量改动（00d2627）专项静态检查 ---- */
+  const items = D.projects?.items || [];
+  const ids = items.map((it) => it.id);
+  const newItems = items.slice(1);
+  const industryItems = items.slice(2);
+  const nori = items[1] || {};
+
+  /* A17 — 5 项顺序、新增 4 项严禁编造未公开字段、行业终端 3 项保持极简 */
+  const invented = [];
+  newItems.forEach((it, i) => {
+    ["period", "role", "status", "statusTone"].forEach((k) => {
+      if (it[k] !== undefined && it[k] !== null && it[k] !== "") invented.push(`items[${i + 1}].${k}=${it[k]}`);
+    });
+    if ((it.results || []).length > 0) invented.push(`items[${i + 1}].results 非空`);
+  });
+  const industryIssues = [];
+  industryItems.forEach((it, i) => {
+    ["highlights", "stack", "results", "links"].forEach((k) => {
+      if ((it[k] || []).length > 0) industryIssues.push(`items[${i + 2}].${k} 应为空数组`);
+    });
+    INDUSTRY_COMMON_TAGS.forEach((t) => {
+      if (!(it.tags || []).includes(t)) industryIssues.push(`items[${i + 2}] 缺共同标签 ${t}`);
+    });
+  });
+  const noriLinks = nori.links || [];
+  const idsOk = items.length === EXPECTED_PROJECT_COUNT &&
+    JSON.stringify(ids) === JSON.stringify(EXPECTED_PROJECT_IDS);
+  const a17ok = idsOk && invented.length === 0 && industryIssues.length === 0 &&
+    noriLinks.length === 3 && noriLinks.every((l) => WHITELIST.includes(l.url) && kinds.has(l.kind));
+  check("A17", "增量数据契约：5 项顺序正确、新增 4 项无编造字段、3 张行业终端卡保持极简",
+    "Node vm 遍历 projects.items 字段",
+    "5 项且 id 顺序匹配；新增 4 项无 period/role/status/statusTone、results=[]；行业 3 项四个数组全空且共同标签齐全；Nori 3 条白名单外链",
+    `ids=${ids.join(",")}；编造字段=${invented.join("; ") || "无"}；行业卡问题=${industryIssues.join("; ") || "无"}；Nori外链=${noriLinks.length}`, a17ok);
+
+  /* A18 — site.description 扩展后仍保留原技术关键词 */
+  const desc = D.site?.description || "";
+  const descNeed = ["Nori", "RK3576", "行业终端", "Jetpack Compose", "Kotlin", "Flutter", "OCPP", "MQTT"];
+  const descMiss = descNeed.filter((k) => !desc.includes(k));
+  check("A18", "site.description 含新项目且保留原技术关键词", "数据字段关键字检查",
+    `8/8 关键词命中`, `缺失=${descMiss.join(",") || "无"}；description=${desc}`, descMiss.length === 0);
+
+  /* A19 — 新增项目措辞纪律：客观描述、Onboarding 拼写、Nori 功能关键词 */
+  const newText = JSON.stringify(newItems);
+  const exaggerations = EXAGGERATIONS.filter((w) => newText.includes(w));
+  const misspelling = /onbrading|onboardng/i.test(newText);
+  const noriMiss = NORI_KEYWORDS.filter((k) => !newText.includes(k));
+  check("A19", "新增项目措辞客观（无夸大用词）、Onboarding 拼写正确、Nori 功能点齐全",
+    "新增 4 项序列化文本关键字检查",
+    "夸大用词 0；Onboarding 存在且无拼写错误；8 个功能关键词齐全",
+    `夸大用词=${exaggerations.join(",") || "无"}；拼写错误=${misspelling}；功能点缺失=${noriMiss.join(",") || "无"}`,
+    exaggerations.length === 0 && !misspelling && newText.includes("Onboarding") && noriMiss.length === 0);
+
+  /* A20 — 403 域名不得进入数据外链；3 条新 URL 在白名单且渲染层可读 */
+  const dataText = JSON.stringify(D);
+  const forbiddenUrlHit = FORBIDDEN_URLS.filter((u) => dataText.includes(u));
+  const newUrlsInList = ["https://heynori.com/", ROCK_SPEC_URL, "https://www.rock-chips.com/"]
+    .every((u) => WHITELIST.includes(u) && dataText.includes(u));
+  check("A20", "403 域名 support.heynori.com 未进入数据外链；3 条新增 URL 均在白名单且在数据中",
+    "数据序列化文本 + 白名单比对",
+    "403 域名 0 命中；3 条新 URL 全部命中",
+    `403域名命中=${forbiddenUrlHit.join(",") || "无"}；新URL齐备=${newUrlsInList}`,
+    forbiddenUrlHit.length === 0 && newUrlsInList);
+
   return { html, css, mainJs, resumeJs, guide, readme, resumeMd, D };
 }
 
@@ -413,11 +504,11 @@ async function browserChecks(html) {
       };
     })()`);
     const domExpect = { heroName: "孙喜龙", sections: 8, navLinks: 6, timelineItems: 5,
-      projectCards: 1, repoCards: 6, eduCards: 1, contactRows: 4, skillGroups: 4,
+      projectCards: EXPECTED_PROJECT_COUNT, repoCards: 6, eduCards: 1, contactRows: 4, skillGroups: 4,
       advCards: 4, footerLines: 3, modiv: 7, windowBar: 1, h1: 1 };
     const domDiff = Object.entries(domExpect).filter(([k, v]) =>
       k === "heroName" ? !dom.heroName.includes(v) : dom[k] !== v).map(([k, v]) => `${k}: 期望 ${v} 实际 ${dom[k]}`);
-    check("B1", "真实渲染 DOM：Hero 姓名 / 8 顶层 section / 5 经历 / 1 项目 / 6 仓库 / 教育 / 页脚",
+    check("B1", "真实渲染 DOM：Hero 姓名 / 8 顶层 section / 5 经历 / 5 项目 / 6 仓库 / 教育 / 页脚",
       "Chrome headless 加载 file://index.html 后 Runtime.evaluate 断言（main > section 计顶层区块）",
       "顶层 section=8，其余数量全部匹配",
       domDiff.length ? domDiff.join("; ") : `${JSON.stringify(domExpect)}；main section 共 ${dom.allSections}（含 4 个语义化 skill-group 卡片）`,
@@ -630,11 +721,12 @@ async function browserChecks(html) {
       };
     })()`);
     const cdpExtErr = cdpErrors().length;
+    const expectedAppendCards = EXPECTED_PROJECT_COUNT + 1;
     check("B16", "易扩展性：追加 links:[]/highlights:[] 最小项目 → 多一张卡 + 空态文案、不抛异常",
       "临时 harness 内存中 push 一个对象，真实浏览器重新渲染",
-      "cards=2、第 2 张含『本项目暂无公开外链』、0 异常",
+      `cards=${expectedAppendCards}、第 ${expectedAppendCards} 张含『本项目暂无公开外链』、0 异常`,
       `cards=${ext.cards}; hasName=${ext.hasName}; hasEmptyText=${ext.hasEmptyText}; patchError=${ext.patchError}; pageErrors=${JSON.stringify(ext.pageErrors)}; cdpErrors=${cdpExtErr}`,
-      ext.cards === 2 && ext.hasName && ext.hasEmptyText && !ext.patchError &&
+      ext.cards === expectedAppendCards && ext.hasName && ext.hasEmptyText && !ext.patchError &&
       ext.pageErrors.length === 0 && cdpExtErr === 0);
 
     const patchClear = `function (d) { d.projects.items.length = 0; }`;
@@ -676,6 +768,134 @@ async function browserChecks(html) {
       a11y.headerPosition === "sticky" && parseFloat(a11y.scrollMargin) > 0 &&
       parseFloat(a11y.btnMinHeight) >= 44 && a11y.focusVisibleRule);
 
+    /* ---- 增量改动（00d2627）专项：真实浏览器复核 renderProjects 条件渲染 ---- */
+    const proj = await evalJS(`(() => {
+      const cards = [...document.querySelectorAll(".project-card")];
+      const info = (c) => ({
+        name: (c.querySelector(".project-name") || {}).textContent || "",
+        text: c.textContent || "",
+        labels: [...c.querySelectorAll(".block-label")].map(n => n.textContent),
+        links: [...c.querySelectorAll('a[href^="http"]')].map(a => ({
+          attr: a.getAttribute("href"), prop: a.href,
+          target: a.getAttribute("target"), rel: a.getAttribute("rel")
+        })),
+        hasMeta: !!c.querySelector(".project-meta"),
+        badges: [...c.querySelectorAll(".badge")].map(n => n.textContent),
+        emptyState: (c.querySelector(".empty-state") || {}).textContent || "",
+        tags: [...c.querySelectorAll(".tag")].map(n => n.textContent),
+        emptySpans: [...c.querySelectorAll("span")].filter(s => !s.textContent.trim()).length,
+        undefinedHit: (c.textContent || "").includes("undefined")
+      });
+      return { count: cards.length, cards: cards.map(info) };
+    })()`);
+
+    /* B20 — 5 张卡顺序 */
+    const orderNames = ["新能源充电桩上位机系列", "Nori", "单兵身体检测", "油井操作平板", "大型轮转器"];
+    const orderOk = proj.count === EXPECTED_PROJECT_COUNT &&
+      orderNames.every((frag, i) => (proj.cards[i]?.name || "").includes(frag));
+    check("B20", "5 张项目卡渲染顺序与 projects.items 一致", "真实 DOM .project-name 顺序比对",
+      "5 张，顺序为充电桩 → Nori → 单兵 → 油井 → 轮转器",
+      proj.cards.map((c, i) => `${i + 1}.${c.name}`).join(" | "), orderOk);
+
+    /* B21 — Nori 卡：3 外链、URL 完整、无 meta/成果区块、措辞与功能点 */
+    const noriCard = proj.cards[1] || {};
+    const rockLinks = (noriCard.links || []).filter((l) => (l.attr || "").includes("rock-chips.com/a/cn"));
+    const rockOk = rockLinks.length === 1 && rockLinks[0].attr === ROCK_SPEC_URL && rockLinks[0].prop === ROCK_SPEC_URL;
+    const noriAllLinksOk = (noriCard.links || []).length === 3 &&
+      (noriCard.links || []).every((l) => l.target === "_blank" &&
+        /(^|\s)noopener(\s|$)/.test(l.rel || "") && /(^|\s)noreferrer(\s|$)/.test(l.rel || "") &&
+        WHITELIST.includes(l.attr));
+    const noriKwMiss = NORI_KEYWORDS.filter((k) => !(noriCard.text || "").includes(k));
+    const noriExaggeration = EXAGGERATIONS.filter((w) => (noriCard.text || "").includes(w));
+    const b21ok = !!noriCard.name && noriAllLinksOk && rockOk && !noriCard.hasMeta &&
+      !(noriCard.labels || []).includes("项目成果") &&
+      ["核心工作", "技术栈", "相关外链 · 可点击查看"].every((l) => (noriCard.labels || []).includes(l)) &&
+      !noriCard.undefinedHit && noriKwMiss.length === 0 && noriExaggeration.length === 0;
+    check("B21", "Nori 卡：3 条外链可点击 / RK3576 规格 URL 完整 / 无周期·角色·状态·成果 / 措辞客观",
+      "真实 DOM 读取 href / block-label / project-meta / 文本",
+      "3 外链全部合规；getAttribute 与 a.href 均等于瑞芯微规格 URL；无 .project-meta 与『项目成果』；含 8 个功能关键词；无夸大用词；无 undefined",
+      `links=${(noriCard.links || []).length}; rockOk=${rockOk}; hasMeta=${noriCard.hasMeta}; labels=${(noriCard.labels || []).join(",")}; 关键词缺失=${noriKwMiss.join(",") || "无"}; 夸大用词=${noriExaggeration.join(",") || "无"}`,
+      b21ok);
+
+    /* B22 — 3 张行业终端卡：只显示名称 + 客观描述 + 标签 + 空态，无任何空标题/占位 */
+    const companyWords = ["有限公司", "集团", "股份", "科技", "智充", "奥飞", "好活", "名医", "未名天"];
+    const industryReport = proj.cards.slice(2).map((c, i) => {
+      const text = c.text || "";
+      const hasDigit = Array.from(text).some((ch) => ch >= "0" && ch <= "9");
+      return {
+        index: i + 3,
+        labels: c.labels,
+        onlyLinksBlock: c.labels.length === 1 && c.labels[0] === "相关外链 · 可点击查看",
+        emptyStateOk: c.emptyState.includes("本项目暂无公开外链"),
+        noLinks: c.links.length === 0,
+        commonTags: INDUSTRY_COMMON_TAGS.every((t) => c.tags.includes(t)),
+        noEmptySpan: c.emptySpans === 0,
+        noUndefined: !c.undefinedHit,
+        noDateOrNumber: !hasDigit && !text.includes("%"),
+        noCompany: !companyWords.some((w) => text.includes(w)),
+        noEmptyHeadings: !["核心工作", "技术栈", "项目成果"].some((l) => text.includes(l)),
+      };
+    });
+    const b22ok = industryReport.length === 3 && industryReport.every((r) =>
+      Object.entries(r).filter(([k]) => k !== "index" && k !== "labels").every(([, v]) => v === true));
+    check("B22", "3 张行业终端卡纯净性：无空标题 / 空 span / undefined / 公司名 / 日期 / 成果数字 / 技术方案",
+      "真实 DOM 逐卡检查 block-label / span / 文本 / 标签 / 空态",
+      "每卡仅 1 个『相关外链』区块、1 个空态、0 外链、共同标签齐全，10 项纯净性全 true",
+      JSON.stringify(industryReport), b22ok);
+
+    /* B23 — 原充电桩卡未被增量改动破坏 */
+    const first = proj.cards[0] || {};
+    const firstLabels = first.labels || [];
+    const b23ok = firstLabels.length === 4 &&
+      ["核心工作", "技术栈", "项目成果", "相关外链 · 可点击查看"].every((l) => firstLabels.includes(l)) &&
+      (first.links || []).length === 7 && first.hasMeta === true &&
+      (first.badges || []).some((b) => b.includes("进行中")) && !first.undefinedHit;
+    check("B23", "回归：原充电桩卡仍为 4 个内容区块 + 7 条外链 + 周期/角色/在职徽标",
+      "真实 DOM 比对首张卡结构",
+      "4 区块 / 7 外链 / .project-meta 存在 / 含『进行中』徽标 / 无 undefined",
+      `labels=${firstLabels.join(",")}; links=${(first.links || []).length}; hasMeta=${first.hasMeta}; badges=${(first.badges || []).join(",")}`, b23ok);
+
+    /* B24 — 锚点导航高亮（IntersectionObserver / scroll 兜底） */
+    await evalJS(`(() => {
+      document.documentElement.style.scrollBehavior = "auto";
+      var s = document.getElementById("projects");
+      window.scrollTo(0, Math.max(0, s.offsetTop - 80));
+      return s.offsetTop;
+    })()`);
+    await sleep(650);
+    const spy = await evalJS(`(() => ({
+      active: [...document.querySelectorAll(".nav-link.is-active")].map(a => a.getAttribute("data-target")),
+      ariaCurrent: [...document.querySelectorAll(".nav-link[aria-current]")].map(a => a.getAttribute("data-target")),
+      scrollY: window.scrollY
+    }))()`);
+    const validTargets = ["about", "experience", "projects", "opensource", "education", "contact"];
+    const b24ok = spy.active.length >= 1 && spy.active.length <= 1 &&
+      validTargets.includes(spy.active[0]) &&
+      JSON.stringify(spy.active) === JSON.stringify(spy.ariaCurrent) && spy.scrollY > 0;
+    check("B24", "导航高亮：滚动后当前区块链接 is-active 且 aria-current 配对", "CDP 滚动到 #projects + 读 .nav-link 状态",
+      "恰好 1 个 active，target 合法，aria-current 一致，scrollY>0", JSON.stringify(spy), b24ok);
+    await evalJS(`window.scrollTo(0, 0); "reset"`);
+
+    /* B25 — 点击复制（注入 clipboard mock 走成功路径，验证 UI 反馈链路） */
+    await evalJS(`Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: function () { return Promise.resolve(); } } }); "mocked"`);
+    await evalJS(`document.querySelector(".copy-btn").click(); "clicked"`);
+    await sleep(300);
+    const cp = await evalJS(`(() => {
+      var btn = document.querySelector(".copy-btn");
+      return {
+        feedback: (document.getElementById("copy-feedback") || {}).textContent || "",
+        toastText: (document.getElementById("toast") || {}).textContent || "",
+        toastVisible: document.getElementById("toast").classList.contains("is-visible"),
+        btnText: (btn || {}).textContent || "",
+        btnCopied: btn ? btn.classList.contains("is-copied") : false,
+        dataCopy: btn ? btn.getAttribute("data-copy") : ""
+      };
+    })()`);
+    const b25ok = cp.feedback.includes("已复制") && cp.toastVisible && cp.btnCopied &&
+      cp.btnText.includes("已复制") && !!cp.dataCopy;
+    check("B25", "点击复制：行内反馈 + toast + 按钮变为『已复制』（无系统弹窗）", "CDP 注入 clipboard mock 后触发 click",
+      "copy-feedback / toast / 按钮三处均显示成功态且 data-copy 非空", JSON.stringify(cp), b25ok);
+
     /* ---- 场景 12（可选 --online-render）：线上 Pages 子路径真实渲染 + CSS 生效 ----
        file:// 只能证明本地可用；本例证明 /resume-blog/ 子路径下 ./ 相对资源全部加载。 */
     if (ARGS.has("--online-render")) {
@@ -698,22 +918,33 @@ async function browserChecks(html) {
             cssLoaded: [...document.styleSheets].some(s => (s.href || "").includes("style.css")),
             dataLoaded: !!window.RESUME_DATA,
             jsClass: document.documentElement.classList.contains("js"),
-            theme: document.documentElement.getAttribute("data-theme")
+            theme: document.documentElement.getAttribute("data-theme"),
+            hasNori: document.body.textContent.includes("Nori"),
+            hasNoriLink: !!document.querySelector('a[href="https://heynori.com/"]')
           };
         })()`);
         const onlineErr = cdpErrors().length;
         /* 不硬编码深/浅色：headless 默认 light，背景须与 data-theme 一致即可证明 CSS 生效 */
         const expectedBg = on.theme === "light" ? "rgb(255, 255, 255)" : "rgb(13, 17, 23)";
         const onlineOk = on.url.startsWith("/resume-blog/") && on.heroName.includes("孙喜龙") &&
-          on.navLinks === 6 && on.timeline === 5 && on.projects === 1 && on.repos === 6 &&
+          on.navLinks === 6 && on.timeline === 5 && on.projects >= 1 && on.repos === 6 &&
           on.cssLoaded && on.dataLoaded && on.jsClass && ["light", "dark"].includes(on.theme) &&
           on.bg === expectedBg && on.mono && on.cssSheets >= 1 && onlineErr === 0;
-        check("B19", "线上 Pages 子路径真实渲染 + CSS/JS 相对资源生效",
+        check("B19", "线上 Pages 子路径真实渲染 + CSS/JS 相对资源生效（与版本无关）",
           "Chrome headless 打开 https://sunxl1128.github.io/resume-blog/ 后 CDP 断言",
-          "pathname=/resume-blog/，DOM 数量正确，style.css 已加载，body 背景与 data-theme 一致，0 控制台错误",
+          "pathname=/resume-blog/，DOM 基本结构正确，style.css 已加载，body 背景与 data-theme 一致，0 控制台错误",
           JSON.stringify(on) + `; expectedBg=${expectedBg}; cdpErrors=${onlineErr}`, onlineOk);
+
+        /* 线上内容同步：主理人负责 push，未同步时记 WAIT，不判为源码缺陷 */
+        const synced = on.projects === EXPECTED_PROJECT_COUNT && on.hasNori && on.hasNoriLink;
+        check("B19b", "线上内容与本地 HEAD 同步（5 张项目卡 + Nori 外链）",
+          "线上真实渲染 DOM 比对本地 projects.items 数量与新增外链",
+          `${EXPECTED_PROJECT_COUNT} 张项目卡且含 Nori 官网外链`,
+          `线上 projects=${on.projects}；hasNori=${on.hasNori}；hasNoriLink=${on.hasNoriLink}`,
+          synced ? true : null,
+          synced ? "" : "主理人尚未 push 00d2627，线上仍为上一版；push 后需复测 B19b / D3（非源码缺陷）");
       } catch (e) {
-        check("B19", "线上 Pages 子路径真实渲染 + CSS/JS 相对资源生效",
+        check("B19", "线上 Pages 子路径真实渲染 + CSS/JS 相对资源生效（与版本无关）",
           "Chrome headless 打开线上地址", "可渲染", `环境限制/未生效: ${e.message}`, false,
           "线上验证依赖外网访问与 Pages 生效状态，失败不自动判定为源码缺陷");
       }
@@ -747,9 +978,17 @@ function networkChecks() {
   const codes = [];
   for (const u of WHITELIST) codes.push({ url: u, code: curl(u) });
   const bad = codes.filter((c) => c.code !== "200");
-  check("D1", "白名单 21 条外链 curl 复测 HTTP 200", "curl -L -o NUL -w %{http_code}",
-    "21/21 = 200", `${codes.length - bad.length}/${codes.length} = 200；非200=${bad.map((b) => b.code + " " + b.url).join(" | ") || "无"}`,
+  const n = WHITELIST.length;
+  check("D1", `白名单 ${n} 条外链 curl 复测 HTTP 200`, "curl -L -o NUL -w %{http_code}",
+    `${n}/${n} = 200`, `${codes.length - bad.length}/${codes.length} = 200；非200=${bad.map((b) => b.code + " " + b.url).join(" | ") || "无"}`,
     bad.length === 0);
+
+  /* 403 域名纪律（文档里的「禁止说明」不算，只查是否真的被当作外链使用） */
+  const forbidden403 = FORBIDDEN_URLS.map((u) => ({ url: u, code: curl("https://" + u + "/") }));
+  check("D1b", "403 域名未被误加入白名单或未作为可用外链", "curl + 白名单比对",
+    "support.heynori.com 返回 403 且不在 WHITELIST",
+    forbidden403.map((f) => `${f.code} ${f.url}`).join(" | ") + `；在白名单=${WHITELIST.some((u) => u.includes("support.heynori.com"))}`,
+    forbidden403.every((f) => f.code === "403") && !WHITELIST.some((u) => u.includes("support.heynori.com")));
 
   if (!ARGS.has("--no-online")) {
     const online = [SELF_URL, SELF_URL + "data/resume.js", SELF_URL + "assets/css/style.css"].map((u) => ({ url: u, code: curl(u) }));
@@ -757,6 +996,19 @@ function networkChecks() {
     check("D2", "GitHub Pages 线上地址与静态资源可访问", "curl 探测 3 个线上 URL",
       "3/3 = 200（尚未生效则标注待复测）", online.map((o) => o.code + " " + o.url).join(" | "),
       live, live ? "" : "Pages 可能尚未生效，需主理人稍后复测（不计为源码缺陷）");
+
+    /* 线上内容同步状态：主理人负责 push，未同步记 WAIT */
+    let onlineJs = "";
+    try {
+      onlineJs = execFileSync("curl", ["-sS", "-L", "--max-time", "30", SELF_URL + "data/resume.js"],
+        { encoding: "utf8", maxBuffer: 8 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+    } catch (e) { onlineJs = ""; }
+    const jsSynced = onlineJs.includes("nori-family-ai-hub") && onlineJs.includes("https://heynori.com/");
+    check("D3", "线上 data/resume.js 已包含 00d2627 的新项目与外链", "curl 取回线上 JS 内容比对",
+      "含 nori-family-ai-hub 与 heynori.com 外链",
+      jsSynced ? "已同步" : "线上仍为上一版（未 push）",
+      jsSynced ? true : null,
+      jsSynced ? "" : "主理人负责 push 与复测；此项为部署状态，不判为源码缺陷");
   }
   return codes;
 }
@@ -771,21 +1023,29 @@ function networkChecks() {
   let codes = [];
   if (!ARGS.has("--no-links")) codes = networkChecks();
 
-  const total = results.length;
-  const ok = results.filter(pass).length;
+  const passes = results.filter((r) => r.state === "PASS").length;
+  const fails = results.filter((r) => r.state === "FAIL").length;
+  const waits = results.filter((r) => r.state === "WAIT").length;
+  const judged = passes + fails;
   console.log("---- 用例结果 ----");
   for (const r of results) {
-    console.log(`${r.ok ? "PASS" : "FAIL"} ${r.id} | ${r.name}\n       期望: ${r.expected}\n       实际: ${r.actual}`);
+    console.log(`${r.state} ${r.id} | ${r.name}\n       期望: ${r.expected}\n       实际: ${r.actual}`);
+    if (r.state === "WAIT") { console.log(`       待复测: ${r.detail}`); }
   }
-  console.log(`\n== 汇总: ${ok}/${total} 通过 (${(100 * ok / total).toFixed(1)}%) ==`);
+  console.log(`\n== 汇总: ${passes}/${judged} 通过 (${(100 * passes / (judged || 1)).toFixed(1)}%)，WAIT ${waits} ==`);
   if (codes.length) {
     console.log("\n---- 外链状态码 ----");
     codes.forEach((c) => console.log(`${c.code} ${c.url}`));
   }
-  const failed = results.filter((r) => !r.ok);
+  const failed = results.filter((r) => r.state === "FAIL");
   if (failed.length) {
     console.log("\n---- 失败项 ----");
     failed.forEach((r) => console.log(`${r.id} ${r.name}: ${r.actual} ${r.detail}`));
+  }
+  const waiting = results.filter((r) => r.state === "WAIT");
+  if (waiting.length) {
+    console.log("\n---- 待主理人 push 后复测（非源码缺陷） ----");
+    waiting.forEach((r) => console.log(`${r.id} ${r.name}: ${r.detail}`));
   }
   process.exitCode = failed.length ? 1 : 0;
 })().catch((e) => {
